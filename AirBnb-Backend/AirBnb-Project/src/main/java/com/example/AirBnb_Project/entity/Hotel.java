@@ -1,0 +1,60 @@
+package com.example.AirBnb_Project.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.annotation.Nullable;
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.Generated;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "hotel")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+
+public class Hotel {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id ;
+
+    @Column(nullable = false)
+    private String name ;
+
+    private String city;
+
+    @Column(columnDefinition = "TEXT[]")
+    private String[] photos;
+
+    @Column(columnDefinition = "TEXT[]")
+    private String[] amenities;
+
+    @CreationTimestamp
+    private LocalDateTime createdAT;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
+    @Embedded
+    private HotelContactInfo hotelContactInfo;
+
+    @Column(nullable = false)
+    private Boolean isActive;
+
+    @OneToMany(mappedBy = "hotel", cascade = CascadeType.ALL)
+    private List<Room> rooms;
+
+    @ManyToOne(optional = false , fetch = FetchType.LAZY)
+    private User owner;
+}
+
+//it would be something like :
+//hotel_contact_info_address------
+//hotel_contact_info_phonenumber---------
+

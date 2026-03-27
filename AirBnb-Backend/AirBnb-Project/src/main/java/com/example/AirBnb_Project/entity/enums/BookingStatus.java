@@ -1,0 +1,10 @@
+package com.example.AirBnb_Project.entity.enums;
+
+public enum BookingStatus {
+    RESERVED,
+    GUEST_ADDED,
+    PAYMENT_PENDING,
+    CONFIRMED,
+    CANCELLED,
+    EXPIRED;
+}

@@ -1,0 +1,25 @@
+@import url("https://fonts.cdnfonts.com/css/airbnb-cereal-app");
+@import "tailwindcss";
+
+:root {
+  font-family: "Airbnb Cereal App", "Airbnb Cereal VF", "SF Pro Display",
+    "Segoe UI", sans-serif;
+  color: #222222;
+  background-color: #ffffff;
+}
+
+html {
+  font-family: "Airbnb Cereal App", "Airbnb Cereal VF", "SF Pro Display",
+    "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: inherit;
+  color: #222222;
+  background: #ffffff;
+}
+
+#root {
+  min-height: 100vh;
+}
