@@ -117,6 +117,7 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
+    @Transactional
     public @Nullable HotelInfoDto getHotelInfoById(Long hotelId) {
         Hotel hotel = hotelRepository.findById(hotelId)
                 .orElseThrow(()-> new ResourceNotFound("hotel with this id "+hotelId+"not found "));
@@ -125,13 +126,6 @@ public class HotelServiceImpl implements HotelService {
                 .map((room)->mapper.map(room, RoomDto.class)).toList();
         return new HotelInfoDto(mapper.map(hotel , HotelDto.class), rooms);
 
-    }
-
-    @Override
-    public List<HotelDto> getAllHotels() {
-        User user = getCurrentUser();
-        List<Hotel> listOfHotels = hotelRepository.findAll();
-        return List.of((HotelDto) listOfHotels);
     }
 
     @Override
@@ -182,6 +176,50 @@ public class HotelServiceImpl implements HotelService {
                 .map(hotel -> mapper.map(hotel, HotelDto.class))
                 .collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public List<HotelDto> getAllHotels() {
+        List<Hotel> hotels = hotelRepository.findAll();
+
+        return hotels.stream().map(hotel -> {
+            // 1. Create the empty DTO
+            HotelDto hotelDto = new HotelDto();
+
+            // 2. Manually map the basic fields
+            hotelDto.setId(hotel.getId());
+            hotelDto.setName(hotel.getName());
+            hotelDto.setCity(hotel.getCity());
+            hotelDto.setAmenities(hotel.getAmenities());
+            hotelDto.setPhotos(hotel.getPhotos());
+            hotelDto.setActive(hotel.getIsActive());
+
+            // 3. Manually map the nested Rooms
+            if (hotel.getRooms() != null) {
+                List<RoomDto> roomDtos = hotel.getRooms().stream().map(room -> {
+                    RoomDto rDto = new RoomDto();
+                    rDto.setId(room.getId());
+                    rDto.setType(room.getType());
+                    rDto.setBasePrice(room.getBasePrice());
+                    rDto.setCapacity(room.getCapacity());
+                    rDto.setTotalCount(room.getTotalCount());
+                    return rDto;
+                }).collect(Collectors.toList());
+
+                hotelDto.setRooms(roomDtos);
+            }
+
+            // 4. Safely map the Owner ID (Prevents the User loop!)
+            if (hotel.getOwner() != null) {
+                hotelDto.setOwnerId(hotel.getOwner().getId());
+            }
+
+            // 5. CRITICAL FIX: Return the DTO, not the Entity
+            return hotelDto;
+
+        }).collect(Collectors.toList()); // Cleanly collect it back into a List
     }
+    }
+
 
 

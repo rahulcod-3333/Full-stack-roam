@@ -23,8 +23,6 @@ public interface HotelService {
 
     @Nullable HotelInfoDto getHotelInfoById(Long hotelId);
 
-     List<HotelDto> getAllHotels();
-
     @Nullable List<BookingDto> getAllBookingByHotelId(Long hotelId) throws AccessDeniedException;
 
     @Nullable HotelReportDto getHotelReport(Long hotelId, LocalDateTime startDate, LocalDateTime endDate) throws AccessDeniedException;
@@ -32,4 +30,7 @@ public interface HotelService {
     List<HotelDto> getAllHotelsUser();
 
     List<HotelDto> searchHotels(String city);
+
+    List<HotelDto> getAllHotels();
+
 }

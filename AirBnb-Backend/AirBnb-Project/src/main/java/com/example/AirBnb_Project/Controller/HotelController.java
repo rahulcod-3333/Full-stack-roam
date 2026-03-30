@@ -7,6 +7,7 @@ import com.example.AirBnb_Project.dto.HotelDto;
 import com.example.AirBnb_Project.dto.HotelReportDto;
 import com.example.AirBnb_Project.entity.Hotel;
 import jakarta.persistence.Table;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -22,7 +23,6 @@ import java.util.List;
 @RequestMapping("/admin/hotels")
 @Slf4j
 @RequiredArgsConstructor
-@Table(name = "hotel-info")
 public class HotelController {
     private final HotelService hotelService;
 
@@ -35,12 +35,18 @@ public class HotelController {
     @GetMapping("/{hotelId}")
     public ResponseEntity<HotelDto> getHotelById(@PathVariable Long hotelId) {
         HotelDto hotel = hotelService.getHotelByID(hotelId);
-        return new ResponseEntity<>(hotel, HttpStatus.FOUND);
+        return new ResponseEntity<>(hotel, HttpStatus.OK);
     }
     @PutMapping("/{hotelId}")
     public ResponseEntity<HotelDto> updateById(@PathVariable Long hotelId , @RequestBody HotelDto hotelDto){
         HotelDto hotel = hotelService.updateById(hotelId , hotelDto);
         return ResponseEntity.ok(hotel);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<HotelDto>> getAllHotels(){
+        // The service layer should handle @Transactional if needed
+        return ResponseEntity.ok(hotelService.getAllHotels());
     }
     @DeleteMapping("/{hotelId}")
     public ResponseEntity<Void> deleteById(@PathVariable Long hotelId ){
@@ -52,12 +58,6 @@ public class HotelController {
         hotelService.activateHotel(hotelId);
         return ResponseEntity.noContent().build();
     }
-    @GetMapping
-    public ResponseEntity<List<HotelDto>> getAllHotels(){
-        return ResponseEntity.ok(hotelService.getAllHotels());
-    }
-
-
     @GetMapping("/{hotelId}/bookings")
     public ResponseEntity<List<BookingDto>> getAllHotelsByBookingId(@PathVariable Long hotelId) throws AccessDeniedException {
         return ResponseEntity.ok(hotelService.getAllBookingByHotelId(hotelId));

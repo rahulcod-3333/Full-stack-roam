@@ -1,10 +1,8 @@
 package com.example.AirBnb_Project.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.Generated;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -48,13 +46,12 @@ public class Hotel {
     private Boolean isActive;
 
     @OneToMany(mappedBy = "hotel", cascade = CascadeType.ALL)
+    @JsonIgnore
     private List<Room> rooms;
 
     @ManyToOne(optional = false , fetch = FetchType.LAZY)
+    @JsonIgnore
     private User owner;
 }
 
-//it would be something like :
-//hotel_contact_info_address------
-//hotel_contact_info_phonenumber---------
 
