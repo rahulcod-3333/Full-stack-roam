@@ -1,25 +1,21 @@
-import React, { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import React, { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import API from '../api';
 
 const PropertyDetails = () => {
-
     const { id } = useParams();
     const [hotel, setHotel] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-
         const fetchHotel = async () => {
             try {
                 const res = await API.get(`/hotels/${id}/info`);
-                setHotel(res.data)
-                console.log(res.data)
-
+                setHotel(res.data);
+                console.log("Loaded Hotel Data:", res.data);
             }
             catch (err) {
-                console.error("Failed to load" + err);
-
+                console.error("Failed to load property details:", err);
             }
             finally {
                 setLoading(false);
@@ -27,6 +23,7 @@ const PropertyDetails = () => {
         }
         fetchHotel();
     }, [id]);
+
     if (loading || !hotel) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center">
@@ -35,21 +32,21 @@ const PropertyDetails = () => {
             </div>
         );
     }
+
+    // --- THE SMART FALLBACK LOGIC ---
     const fallbackImages = [
         "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=2070",
-        "https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=2057",
-        "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070",
-        "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=2070"
+        "https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=2057"
     ];
-    const hotelImages = hotel.photos?.length > 0 ? hotel.photos : fallbackImages;
-    const gridImages = [0, 1].map(index => hotelImages[index] || fallbackImages[index]);
+
+    // If the database has photos for this hotel, use them! Otherwise, use the fallbacks.
+    const hotelImages = hotel.photos && hotel.photos.length > 0 ? hotel.photos : fallbackImages;
 
     return (
         <div className="max-w-7xl mx-auto px-6 py-24">
 
             {/* --- HEADER SECTION --- */}
-
-            <div className="">
+            <div>
                 <h1 className="text-4xl font-extrabold text-slate-900">{hotel.name}</h1>
                 <div className="flex items-center space-x-2 text-slate-600 mt-2 font-medium">
                     <span>{hotel.city}</span>
@@ -69,37 +66,26 @@ const PropertyDetails = () => {
             </div>
 
             {/* --- IMAGE GALLERY --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12 h-[400px] rounded-3xl overflow-hidden">
-
-                <img
-                    src={hotelImages[0] || fallbackImages[0]}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-                    alt="Hotel"
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                    {gridImages.map((imgSrc, index) => (
-                        <img
-                            key={index}
-                            src={imgSrc}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-                            alt={`Room view ${index + 1}`}
-                        />
-                    ))}
-                </div>
-
+            {/* If there is only 1 image, it spans the whole width. If 2 or more, it splits into a grid! */}
+            <div className={`grid ${hotelImages.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} gap-4 mb-12 h-[400px] rounded-3xl overflow-hidden mt-8`}>
+                {hotelImages.slice(0, 2).map((img, index) => (
+                    <img
+                        key={index}
+                        src={img}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                        alt={`${hotel.name} view ${index + 1}`}
+                    />
+                ))}
             </div>
+
             {/* --- CONTENT SECTION --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
 
                 {/* Left Column: Info & Rooms */}
                 <div className="lg:col-span-2 space-y-10">
-
-
                     <div>
                         <h3 className="text-2xl font-bold mb-6">Available Rooms</h3>
                         <div className="space-y-6">
-
                             {hotel.rooms?.length > 0 ? hotel.rooms.map((room) => (
                                 <div key={room.id} className="border border-slate-200 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-6 hover:shadow-xl transition-shadow bg-white">
                                     <div className="w-full md:w-auto">
@@ -139,4 +125,5 @@ const PropertyDetails = () => {
         </div>
     );
 }
+
 export default PropertyDetails;

@@ -48,8 +48,6 @@ export default function HomePage() {
       setLoading(true);
       const response = await API.get('/hotels/all');
       setProperties(response.data.map(mapHotelData));
-      setSectionTitle("Featured Properties");
-      setIsSearchMode(false);
     } catch (error) {
       console.error("Error fetching properties:", error);
     } finally {
@@ -57,8 +55,9 @@ export default function HomePage() {
     }
   };
 
-  const mapRoomData = (room) => ({
+  const mapRoomData = (room, roomHotelMap = new Map()) => ({
     id: room.id,
+    hotelId: room.hotelId ?? roomHotelMap.get(String(room.id)) ?? null,
     type: room.type,
     title: room.type,
     location: "Room",
@@ -73,8 +72,21 @@ export default function HomePage() {
   const loadFeaturedRooms = async () => {
     try {
       setLoading(true);
-      const response = await API.get('/allRooms');
-      setRoomData(response.data.map(mapRoomData));
+      const [roomsResponse, hotelsResponse] = await Promise.all([
+        API.get('/allRooms'),
+        API.get('/hotels/all')
+      ]);
+
+      const rooms = Array.isArray(roomsResponse.data) ? roomsResponse.data : [];
+      const hotels = Array.isArray(hotelsResponse.data) ? hotelsResponse.data : [];
+      const roomHotelMap = new Map();
+      hotels.forEach((hotel) => {
+        hotel.rooms?.forEach((room) => {
+          roomHotelMap.set(String(room.id), hotel.id);
+        });
+      });
+
+      setRoomData(rooms.map((room) => mapRoomData(room, roomHotelMap)));
       setSectionTitle("Featured Rooms");
       setIsSearchMode(false);
     } catch (error) {
@@ -207,7 +219,7 @@ export default function HomePage() {
           alt="Hero Background"
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.28)_0%,rgba(15,23,42,0.48)_38%,rgba(15,23,42,0.68)_100%)]"></div>
-        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/30 to-transparent"></div>
+        <div className="absolute inset-x-0 top-0 h-40 bg-linear-to-b from-black/30 to-transparent"></div>
         <div className="absolute -left-16 top-24 h-52 w-52 rounded-full bg-white/10 blur-3xl"></div>
         <div className="absolute right-0 top-1/3 h-72 w-72 rounded-full bg-red-400/20 blur-3xl"></div>
 
@@ -268,7 +280,7 @@ export default function HomePage() {
       </section>
 
       <section ref={searchSectionRef} className="relative -mt-10 px-4 pb-8 md:-mt-14 md:pb-12">
-        <div className="mx-auto w-full max-w-6xl rounded-[32px] border border-slate-200 bg-white px-4 py-6 shadow-[0_30px_80px_rgba(15,23,42,0.08)] sm:px-6 md:px-8 md:py-8">
+        <div className="mx-auto w-full max-w-6xl rounded-4xl border border-slate-200 bg-white px-4 py-6 shadow-[0_30px_80px_rgba(15,23,42,0.08)] sm:px-6 md:px-8 md:py-8">
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Search your destinations</p>
@@ -285,7 +297,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl">
           <div
             ref={featuredIntroRef}
-            className="mb-8 grid gap-5 rounded-[32px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] md:mb-10 md:grid-cols-[1.2fr_0.8fr] md:p-8"
+            className="mb-8 grid gap-5 rounded-4xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] md:mb-10 md:grid-cols-[1.2fr_0.8fr] md:p-8"
           >
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">
@@ -293,7 +305,7 @@ export default function HomePage() {
               </p>
               <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <h2 className="max-w-2xl text-2xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-                  {sectionTitle}
+                  Feature Properties
                 </h2>
                 {isSearchMode && (
                   <button
@@ -308,7 +320,7 @@ export default function HomePage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-100">
+              <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
                 
               </div>
             </div>
@@ -346,7 +358,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl">
           <div
             ref={featuredIntroRef}
-            className="mb-8 grid gap-5 rounded-[32px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] md:mb-10 md:grid-cols-[1.2fr_0.8fr] md:p-8"
+            className="mb-8 grid gap-5 rounded-4xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] md:mb-10 md:grid-cols-[1.2fr_0.8fr] md:p-8"
           >
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">
@@ -382,6 +394,8 @@ export default function HomePage() {
                       // FIX: Pass the correct mapped variable!
                       price={room.price_per_night} 
                       property={room}
+                      hotelId={room.hotelId}
+                      cardType="room"
                       isFavorite={favorites.has(room.id)}
                       compact={true}
                     />

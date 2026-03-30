@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, ArrowLeft, Upload, X } from "lucide-react";
+import { Building2, ArrowLeft } from "lucide-react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { createAdminHotel, createHotelRoom, getAdminHotels } from "./adminApi";
@@ -9,31 +9,16 @@ const emptyHotelForm = { name: "", city: "", photos: "", amenities: "", isActive
 const emptyRoomForm = { type: "", basePrice: "", capacity: "", totalCount: "", photos: "", amenities: "" };
 
 const parseTextList = (value) => value.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
-const readFilesAsDataUrls = (files) =>
-  Promise.all(
-    Array.from(files).map(
-      (file) =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-          reader.readAsDataURL(file);
-        })
-    )
-  );
 
 export default function AdminCreatePage() {
   const navigate = useNavigate();
-  const hotelPhotoInputRef = useRef(null);
   const [hotels, setHotels] = useState([]);
   const [selectedHotelId, setSelectedHotelId] = useState("");
   
   const [hotelForm, setHotelForm] = useState(emptyHotelForm);
   const [roomForm, setRoomForm] = useState(emptyRoomForm);
-  const [hotelUploadedPhotos, setHotelUploadedPhotos] = useState([]);
   const [savingHotel, setSavingHotel] = useState(false);
   const [savingRoom, setSavingRoom] = useState(false);
-  const [uploadingHotelPhotos, setUploadingHotelPhotos] = useState(false);
 
   useEffect(() => {
     loadHotels();
@@ -45,8 +30,55 @@ export default function AdminCreatePage() {
       setHotels(hotelList);
       if (hotelList.length > 0) setSelectedHotelId(hotelList[0].id);
     } catch (err) {
-      toast.error("Failed to load hotels for room assignment.");
+      console.error("Load hotels error:", err);
     }
+  };
+
+  const handleHotelImageUpload = async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+
+      toast.info("Uploading hotel image...", {autoClose: 2000});
+      try{
+        const data = new FormData();
+        data.append("file", file);
+        data.append("upload_preset", "roam_app");
+        const res = await fetch("https://api.cloudinary.com/v1_1/dbkg94t7a/image/upload", {
+          method: "POST",
+          body: data
+        });
+        const uploadedImage = await res.json();
+        const currentPhotos = hotelForm.photos;
+        const newPhotos = currentPhotos ? `${currentPhotos},\n${uploadedImage.secure_url}` : uploadedImage.secure_url;
+        setHotelForm({...hotelForm, photos: newPhotos});
+        toast.success("Hotel image uploaded successfully!");
+      } catch (err) {
+        console.error("Image upload error:", err);
+      }
+  };
+
+  const handleRoomImageUpload = async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+
+      toast.info("Uploading room image...", {autoClose: 2000});
+      try{
+        const data = new FormData();
+        data.append("file", file);
+        data.append("upload_preset", "roam_app");
+        const res = await fetch("https://api.cloudinary.com/v1_1/dbkg94t7a/image/upload", {
+          method: "POST",
+          body: data
+        });
+        const uploadedImage = await res.json();
+        const currentPhotos = roomForm.photos;
+        const newPhotos = currentPhotos ? `${currentPhotos},\n${uploadedImage.secure_url}` : uploadedImage.secure_url;
+        setRoomForm({...roomForm, photos: newPhotos});
+        toast.success("Room image uploaded successfully!");
+      } catch (err) {
+        toast.error("Failed to upload image.");
+        console.error("Image upload error:", err);
+      }
   };
 
   const handleHotelSubmit = async (e) => {
@@ -55,44 +87,19 @@ export default function AdminCreatePage() {
     try {
       const payload = {
         ...hotelForm,
-        photos: [...hotelUploadedPhotos, ...parseTextList(hotelForm.photos)],
+        photos: parseTextList(hotelForm.photos), 
         amenities: parseTextList(hotelForm.amenities),
       };
       await createAdminHotel(payload);
       setHotelForm(emptyHotelForm);
-      setHotelUploadedPhotos([]);
       toast.success("Hotel created successfully!");
-      loadHotels(); // Refresh dropdown list
+      loadHotels(); // Silently refreshes the dropdown list so you can assign rooms to it instantly!
     } catch (err) {
       toast.error("Failed to create hotel.");
+      console.error("Hotel creation error:", err);
     } finally {
       setSavingHotel(false);
     }
-  };
-
-  const handleHotelPhotoUpload = async (event) => {
-    const { files } = event.target;
-
-    if (!files?.length) {
-      return;
-    }
-
-    setUploadingHotelPhotos(true);
-
-    try {
-      const uploadedImages = await readFilesAsDataUrls(files);
-      setHotelUploadedPhotos((current) => [...current, ...uploadedImages]);
-      toast.success(`${uploadedImages.length} photo${uploadedImages.length > 1 ? "s" : ""} added.`);
-    } catch (err) {
-      toast.error("Photo upload failed.");
-    } finally {
-      setUploadingHotelPhotos(false);
-      event.target.value = "";
-    }
-  };
-
-  const removeHotelPhoto = (indexToRemove) => {
-    setHotelUploadedPhotos((current) => current.filter((_, index) => index !== indexToRemove));
   };
 
   const handleRoomSubmit = async (e) => {
@@ -102,106 +109,65 @@ export default function AdminCreatePage() {
     try {
       const payload = { 
         ...roomForm, 
-        basePrice: Number(roomForm.basePrice), capacity: Number(roomForm.capacity), totalCount: Number(roomForm.totalCount),
-        photos: parseTextList(roomForm.photos), amenities: parseTextList(roomForm.amenities) 
+        basePrice: Number(roomForm.basePrice), 
+        capacity: Number(roomForm.capacity), 
+        totalCount: Number(roomForm.totalCount),
+        photos: parseTextList(roomForm.photos), 
+        amenities: parseTextList(roomForm.amenities) 
       };
       await createHotelRoom(selectedHotelId, payload);
       setRoomForm(emptyRoomForm);
-      toast.success("Room created successfully!");
+      toast.success("Room created successfully! You can add another.");
     } catch (err) {
       toast.error("Failed to create room.");
+      console.error("Room creation error:", err);
     } finally {
       setSavingRoom(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans mt-12">
       <ToastContainer position="top-right" autoClose={3000} theme="colored" />
-
-      {/* Header */}
-      <div className="bg-[#0F172A] text-white px-8 py-6 shadow-lg">
-        <div className="flex items-center justify-between max-w-[1200px] mx-auto">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/admin')} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-violet-500 rounded-lg flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold tracking-wide">Inntegrete Workspace</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-[1200px] mx-auto px-8 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <div className="max-w-300 mx-auto px-8 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12">
         
         {/* --- CREATE HOTEL FORM --- */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Create New Property</h2>
-          <p className="text-slate-500 mb-8 font-medium text-sm">Add a new hotel location to the database.</p>
+          <div className="flex items-center gap-4 mb-8">
+            <button onClick={() => navigate('/admin')} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition">
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </button>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">Create New Property</h2>
+              <p className="text-slate-500 font-medium text-sm">Add a new hotel location to the database.</p>
+            </div>
+          </div>
           
           <form onSubmit={handleHotelSubmit} className="space-y-5">
             <div className="grid grid-cols-2 gap-5">
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Hotel Name</label>
-                <input required value={hotelForm.name} onChange={(e) => setHotelForm({...hotelForm, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-400 outline-none" placeholder="The Grand Resort" />
+                <input required value={hotelForm.name} onChange={(e) => setHotelForm({...hotelForm, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" placeholder="The Grand Resort" />
               </div>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">City</label>
-                <input required value={hotelForm.city} onChange={(e) => setHotelForm({...hotelForm, city: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-400 outline-none" placeholder="New York" />
+                <input required value={hotelForm.city} onChange={(e) => setHotelForm({...hotelForm, city: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" placeholder="New York" />
               </div>
             </div>
+
             <div>
-              <div className="mb-3 flex items-center justify-between gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Hotel Photos</label>
-                  <p className="text-sm text-slate-500">Upload images from laptop or mobile, or add external image URLs.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => hotelPhotoInputRef.current?.click()}
-                  disabled={uploadingHotelPhotos}
-                  className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition focus:ring-red-400 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <Upload className="h-4 w-4" />
-                  {uploadingHotelPhotos ? "Uploading..." : "Upload Photos"}
-                </button>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-500 uppercase">Photos URLs</label>
+                <label className="cursor-pointer bg-violet-100 hover:bg-violet-200 text-violet-700 text-xs font-bold px-3 py-1 rounded-lg transition">
+                  + Upload Image File
+                  <input type="file" accept="image/*" className="hidden" onChange={handleHotelImageUpload} />
+                </label>
               </div>
-
-              <input
-                ref={hotelPhotoInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleHotelPhotoUpload}
-                className="hidden"
-              />
-
-              {hotelUploadedPhotos.length > 0 && (
-                <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-3">
-                  {hotelUploadedPhotos.map((photo, index) => (
-                    <div key={`${photo.slice(0, 24)}-${index}`} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                      <img src={photo} alt={`Hotel upload ${index + 1}`} className="h-32 w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removeHotelPhoto(index)}
-                        className="absolute right-2 top-2 rounded-full bg-slate-950/80 p-1 text-white transition hover:bg-slate-950"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <textarea
-                value={hotelForm.photos}
-                onChange={(e) => setHotelForm({...hotelForm, photos: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none min-h-[100px]"
-                placeholder="Optional: https://image1.jpg, https://image2.jpg"
+              <textarea 
+                value={hotelForm.photos} 
+                onChange={(e) => setHotelForm({...hotelForm, photos: e.target.value})} 
+                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none min-h-[100px]" 
+                placeholder="https://image1.jpg, https://image2.jpg" 
               />
             </div>
             <div>
@@ -216,7 +182,7 @@ export default function AdminCreatePage() {
 
         {/* --- CREATE ROOM FORM --- */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Create New Room</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2 mt-[72px]">Create New Room</h2>
           <p className="text-slate-500 mb-8 font-medium text-sm">Assign a new room type to an existing property.</p>
           
           <form onSubmit={handleRoomSubmit} className="space-y-5">
@@ -246,8 +212,24 @@ export default function AdminCreatePage() {
                 <input required type="number" min="1" value={roomForm.totalCount} onChange={(e) => setRoomForm({...roomForm, totalCount: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-400 outline-none" placeholder="10" />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Add Amenitis</label>
-                <input required type="text"  value={roomForm.amenities} onChange={(e) => setRoomForm({...roomForm, amenities: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-400 outline-none" placeholder="10" />
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Add Amenities</label>
+                <input required type="text" value={roomForm.amenities} onChange={(e) => setRoomForm({...roomForm, amenities: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-400 outline-none" placeholder="WiFi, Balcony" />
+              </div>
+              
+              <div className="col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-500 uppercase">Room Photos URLs</label>
+                  <label className="cursor-pointer bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold px-3 py-1 rounded-lg transition">
+                    + Upload Image File
+                    <input type="file" accept="image/*" className="hidden" onChange={handleRoomImageUpload} />
+                  </label>
+                </div>
+                <textarea 
+                  value={roomForm.photos} 
+                  onChange={(e) => setRoomForm({...roomForm, photos: e.target.value})} 
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-400 outline-none min-h-[80px]" 
+                  placeholder="https://room1.jpg" 
+                />
               </div>
 
             </div>
@@ -256,7 +238,6 @@ export default function AdminCreatePage() {
             </button>
           </form>
         </div>
-
       </div>
     </div>
   );

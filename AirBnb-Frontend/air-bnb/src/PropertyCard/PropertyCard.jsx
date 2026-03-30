@@ -3,15 +3,36 @@ import { Link } from 'react-router-dom';
 import { Heart, Star } from 'lucide-react';
 import API from '../api';
 
-export default function PropertyCard({ property, price, isFavorite = false, onFavoriteChange, compact = false }) {
+export default function PropertyCard({
+  property,
+  hotelId,
+  price,
+  isFavorite = false,
+  onFavoriteChange,
+  compact = false,
+  cardType = "hotel"
+}) {
   const [favorite, setFavorite] = useState(isFavorite);
   const [loading, setLoading] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
+  const isRoomCard = cardType === "room";
+  const targetHotelId = isRoomCard
+    ? (hotelId ?? property.hotelId ?? null)
+    : (hotelId ?? property.hotelId ?? property.id);
+  const cardLink = isRoomCard
+    ? (targetHotelId ? `/property/${targetHotelId}/room/${property.id}` : '#')
+    : `/property/${targetHotelId}`;
+
   const handleFavoriteClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!targetHotelId) {
+      alert('Hotel information is missing for this room.');
+      return;
+    }
 
     if (!user) {
       alert('Please login to add favorites');
@@ -21,12 +42,12 @@ export default function PropertyCard({ property, price, isFavorite = false, onFa
     setLoading(true);
     try {
       if (favorite) {
-        await API.delete(`/favourites/${user.id}/${property.id}`);
+        await API.delete(`/favourites/${user.id}/${targetHotelId}`);
         setFavorite(false);
       } else {
         await API.post(`/favourites`, {
           userId: user.id,
-          hotelId: property.id
+          hotelId: targetHotelId 
         });
         setFavorite(true);
       }
@@ -38,10 +59,8 @@ export default function PropertyCard({ property, price, isFavorite = false, onFa
     }
   };
 
-  // --- UPDATED PRICE LOGIC ---
   let displayPrice = "Price unavailable";
 
-  // 1. If it is a Hotel (it has a list of rooms)
   if (property.rooms && property.rooms.length > 0) {
     const prices = property.rooms
       .map((room) => room.basePrice)
@@ -53,13 +72,10 @@ export default function PropertyCard({ property, price, isFavorite = false, onFa
       displayPrice = minPrice === maxPrice ? `$${minPrice}` : `$${minPrice} - $${maxPrice}`;
     }
   } 
-  // 2. If it is a Room (no rooms array), use the explicitly passed 'price' prop
   else if (price && price !== "unavailable") {
     displayPrice = `$${price}`;
   }
 
-
-  // Inventory & Room Types Logic
   const roomList = Array.isArray(property.rooms) ? property.rooms : [];
   const totalRoomValues = roomList
     .map((room) => Number(room?.totalCount))
@@ -68,15 +84,15 @@ export default function PropertyCard({ property, price, isFavorite = false, onFa
   const roomTypeCount = roomList.length;
 
   return (
-    <Link to={`/property/${property.id}`} className="block">
+    <Link to={cardLink} className="block">
       <article className={`overflow-hidden border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.06)] ${compact ? "rounded-[22px]" : "rounded-[28px]"}`}>
-        <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+        <div className="relative aspect-4/3 overflow-hidden bg-slate-100">
           <img
-            src={property.images?.[0] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070"}
-            alt={property.title}
+            src={property.images?.[0] || property.photos?.[0] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070"}
+            alt={property.title || property.type || "Property"}
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent"></div>
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/50 to-transparent"></div>
 
           {property.rating && (
             <div className="absolute left-4 top-4 inline-flex items-center gap-1 rounded-full bg-white/92 px-3 py-1.5 text-sm font-medium text-slate-900 shadow-sm">
@@ -99,17 +115,18 @@ export default function PropertyCard({ property, price, isFavorite = false, onFa
 
         <div className={compact ? "space-y-3 p-4" : "space-y-4 p-5"}>
           <div className="space-y-2">
-            <div className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {property.location}
-            </div>
+            {property.location && (
+               <div className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                 {property.location}
+               </div>
+            )}
             <div>
               <h3 className={compact ? "text-base font-semibold leading-6 text-slate-900" : "text-lg font-semibold leading-7 text-slate-900"}>
-                {property.title}
+                {property.title || property.type || property.name}
               </h3>
             </div>
           </div>
 
-          {/* Only show this block if it's a Hotel (has rooms) */}
           {!compact && property.rooms && (
             <div className="grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-3">
               <div>
@@ -127,7 +144,6 @@ export default function PropertyCard({ property, price, isFavorite = false, onFa
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Price</p>
               <div className="mt-1">
-                {/* USE displayPrice HERE! */}
                 <span className={compact ? "text-lg font-semibold text-slate-900" : "text-xl font-semibold text-slate-900"}>{displayPrice}</span>
                 <span className="text-sm text-slate-500"> / night</span>
               </div>
