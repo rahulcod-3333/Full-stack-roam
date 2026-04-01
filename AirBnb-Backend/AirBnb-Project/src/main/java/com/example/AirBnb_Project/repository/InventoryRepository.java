@@ -104,6 +104,8 @@ public interface InventoryRepository extends JpaRepository<Inventory ,Long> {
 
     List<Inventory> findByRoomOrderByDate(Room room);
 
+    boolean existsByRoomAndDate(Room room, LocalDate date);
+
     @Modifying
     @Query("""
                 UPDATE Inventory i

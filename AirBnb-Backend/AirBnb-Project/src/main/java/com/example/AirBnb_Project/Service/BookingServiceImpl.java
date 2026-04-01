@@ -27,6 +27,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -66,8 +67,9 @@ public class BookingServiceImpl implements BookingService{
         Room room = roomRepository.findById(bookingRequest.getRoomId()).orElseThrow(() ->
                 new ResourceNotFoundException("Room not found with id: "+bookingRequest.getRoomId()));
 
-        List<Inventory> inventories = inventoryRepository.findAndLockAvailableInventory(room.getId(),bookingRequest.getCheckInDate(),bookingRequest.getCheckOutDate(), bookingRequest.getRoomsCount() );
-        long daysCount = ChronoUnit.DAYS.between(bookingRequest.getCheckInDate(), bookingRequest.getCheckOutDate())+1;
+        LocalDate actualCheckOut = bookingRequest.getCheckOutDate().minusDays(1);
+        List<Inventory> inventories = inventoryRepository.findAndLockAvailableInventory(room.getId(),bookingRequest.getCheckInDate(),actualCheckOut, bookingRequest.getRoomsCount() );
+        long daysCount = ChronoUnit.DAYS.between(bookingRequest.getCheckInDate(), bookingRequest.getCheckOutDate());
         if(inventories.size()!= daysCount){
             throw new IllegalStateException("room is not available ");
         }
@@ -82,7 +84,7 @@ public class BookingServiceImpl implements BookingService{
 //        user.setId(1L);// get dummy user
 
     //TODO : find the dynamic amount of the booking prices
-        long nights = ChronoUnit.DAYS.between(bookingRequest.getCheckInDate(), bookingRequest.getCheckOutDate()) + 1;
+        long nights = ChronoUnit.DAYS.between(bookingRequest.getCheckInDate(), bookingRequest.getCheckOutDate());
         BigDecimal totalPrice = room.getBasePrice()
                 .multiply(BigDecimal.valueOf(nights))
                 .multiply(BigDecimal.valueOf(bookingRequest.getRoomsCount()));

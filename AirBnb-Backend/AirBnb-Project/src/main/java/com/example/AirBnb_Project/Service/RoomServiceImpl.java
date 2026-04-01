@@ -11,6 +11,7 @@ import com.example.AirBnb_Project.exception.UnAuthorizeException;
 import com.example.AirBnb_Project.repository.HotelRepository;
 import com.example.AirBnb_Project.repository.InventoryRepository;
 import com.example.AirBnb_Project.repository.RoomRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -32,6 +33,7 @@ public class RoomServiceImpl implements RoomService {
     private final ModelMapper mapper;
     private final InventoryService inventoryService;
     @Override
+    @Transactional
     public RoomDto createNewRoom(RoomDto roomDto, Long hotelId) {
         log.info("creating new hotel with id"+hotelId);
         Hotel hotel = hotelRepository.findById(hotelId).orElseThrow(()->

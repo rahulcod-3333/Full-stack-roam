@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,11 +40,17 @@ public class InventoryServiceImpl implements InventoryService {
     private final HotelMinPriceRepository hotelMinPriceRepository;
     private final RoomRepository roomRepository;
     @Override
+    @Transactional
     public void initializeRoomForAYear(Room room) {
-
         LocalDate today = LocalDate.now();
-        LocalDate endDate = LocalDate.now().plusYears(1);
-        for(; !today.isAfter(endDate); today=today.plusDays(1)){
+        LocalDate endDate = today.plusYears(1);
+
+        List<Inventory> inventoryList = new ArrayList<>();
+
+        for (; !today.isAfter(endDate); today = today.plusDays(1)) {
+            if (inventoryRepository.existsByRoomAndDate(room, today)) {
+                continue;
+            }
             Inventory inventory= Inventory.builder()
                     .hotel(room.getHotel())
                     .room(room)
@@ -56,9 +63,11 @@ public class InventoryServiceImpl implements InventoryService {
                     .totalCount(room.getTotalCount())
                     .closed(false)
                     .build();
-            inventoryRepository.save(inventory);
+            inventoryList.add(inventory);
+
         }
 
+        inventoryRepository.saveAll(inventoryList);
     }
 
     @Override

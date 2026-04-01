@@ -42,7 +42,7 @@ public class HotelServiceImpl implements HotelService {
     public HotelDto createNewHotel(HotelDto hotelDto){
         log.info("Creating a new hotel with name : {}",hotelDto.getName());
         Hotel hotel = mapper.map(hotelDto , Hotel.class);
-        hotel.setIsActive(false);
+        hotel.setIsActive(hotelDto.isActive());
         if(hotel.getRooms()!=null){
             for (Room room : hotel.getRooms()){
                 room.setHotel(hotel);
@@ -51,6 +51,11 @@ public class HotelServiceImpl implements HotelService {
         User user = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         hotel.setOwner(user);
         hotelRepository.save(hotel);
+        if (hotel.getIsActive() && hotel.getRooms() != null) {
+            for (Room room : hotel.getRooms()) {
+                inventoryService.initializeRoomForAYear(room);
+            }
+        }
         log.info("created new hotel with id :{}",hotel.getId());
         return mapper.map(hotel , HotelDto.class) ;
 
@@ -109,8 +114,11 @@ public class HotelServiceImpl implements HotelService {
             throw new UnAuthorizeException("user with this id is not found ");
         }
 
-        hotel.setIsActive(true);
+        if (Boolean.TRUE.equals(hotel.getIsActive())) {
+            return;
+        }
 
+        hotel.setIsActive(true);
         for (Room room : hotel.getRooms()) {
             inventoryService.initializeRoomForAYear(room);
         }
@@ -133,7 +141,7 @@ public class HotelServiceImpl implements HotelService {
         Hotel hotel = hotelRepository.findById(hotelId).orElseThrow(()->new ResourceNotFoundException("hotel with this id is not found "));
         User user = getCurrentUser();
 
-        if(user.equals(hotel.getOwner())) throw new AccessDeniedException("you are not the owner of the hotel");
+        if(!user.equals(hotel.getOwner())) throw new AccessDeniedException("you are not the owner of the hotel");
         List<Booking> bookings = bookingRepository.findByHotelId(hotelId);
 
         return bookings.stream().map((ele) ->mapper.map(ele , BookingDto.class)).collect(Collectors.toList());
@@ -144,7 +152,7 @@ public class HotelServiceImpl implements HotelService {
         Hotel hotel = hotelRepository.findById(hotelId).orElseThrow(()->new ResourceNotFoundException("hotel with this id is not found "));
         User user = getCurrentUser();
 
-        if(user.equals(hotel.getOwner())) throw new AccessDeniedException("you are not the owner of the hotel");
+        if(!user.equals(hotel.getOwner())) throw new AccessDeniedException("you are not the owner of the hotel");
         startDate = LocalDateTime.MIN;
         endDate = LocalDateTime.MAX;
         List<Booking> bookings = bookingRepository.findByHotelIdAndCreatedATBetween(hotelId , startDate , endDate);
@@ -183,10 +191,8 @@ public class HotelServiceImpl implements HotelService {
         List<Hotel> hotels = hotelRepository.findAll();
 
         return hotels.stream().map(hotel -> {
-            // 1. Create the empty DTO
             HotelDto hotelDto = new HotelDto();
 
-            // 2. Manually map the basic fields
             hotelDto.setId(hotel.getId());
             hotelDto.setName(hotel.getName());
             hotelDto.setCity(hotel.getCity());
@@ -194,7 +200,6 @@ public class HotelServiceImpl implements HotelService {
             hotelDto.setPhotos(hotel.getPhotos());
             hotelDto.setActive(hotel.getIsActive());
 
-            // 3. Manually map the nested Rooms
             if (hotel.getRooms() != null) {
                 List<RoomDto> roomDtos = hotel.getRooms().stream().map(room -> {
                     RoomDto rDto = new RoomDto();
@@ -214,10 +219,9 @@ public class HotelServiceImpl implements HotelService {
                 hotelDto.setOwnerId(hotel.getOwner().getId());
             }
 
-            // 5. CRITICAL FIX: Return the DTO, not the Entity
             return hotelDto;
 
-        }).collect(Collectors.toList()); // Cleanly collect it back into a List
+        }).collect(Collectors.toList());
     }
     }
 
