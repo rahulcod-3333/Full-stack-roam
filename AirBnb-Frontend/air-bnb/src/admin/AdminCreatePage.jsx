@@ -87,6 +87,7 @@ export default function AdminCreatePage() {
     try {
       const payload = {
         ...hotelForm,
+        active: hotelForm.isActive,
         photos: parseTextList(hotelForm.photos), 
         amenities: parseTextList(hotelForm.amenities),
       };
